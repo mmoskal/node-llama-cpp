@@ -139,7 +139,9 @@ export type LLAMAContext = {
     tokenNl(): number,
     getContextSize(): number
     getTokenString(token: number): string
+    getTokenBytes(token: number, special?: boolean): Uint8Array
     printTimings(): void
+    getVocabSize(): number
 };
 
 export type LLAMAGrammar = {

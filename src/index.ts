@@ -17,6 +17,8 @@ import {FalconChatPromptWrapper} from "./chatWrappers/FalconChatPromptWrapper.js
 import {getChatWrapperByBos} from "./chatWrappers/createChatWrapperByBos.js";
 import {getReleaseInfo} from "./utils/getReleaseInfo.js";
 
+import {type TokenizerInfo, ModelIface} from "./modeliface.js";
+
 import {type ConversationInteraction, type Token} from "./types.js";
 import {
     type GbnfJsonArraySchema, type GbnfJsonBasicSchema, type GbnfJsonConstSchema, type GbnfJsonEnumSchema, type GbnfJsonObjectSchema,
@@ -59,5 +61,8 @@ export {
     type GbnfJsonEnumSchema,
     type GbnfJsonOneOfSchema,
     type GbnfJsonObjectSchema,
-    type GbnfJsonArraySchema
+    type GbnfJsonArraySchema,
+
+    ModelIface,
+    type TokenizerInfo,
 };
