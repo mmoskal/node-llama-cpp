@@ -310,6 +310,7 @@ class LLAMAContextEvalWorker : Napi::AsyncWorker, Napi::Promise::Deferred {
   float repeat_penalty_presence_penalty = 0.00f; // 0.0 = disabled
   float repeat_penalty_frequency_penalty = 0.00f; // 0.0 = disabled
   std::vector<llama_token> repeat_penalty_tokens;
+  std::vector<uint32_t> token_mask;
   bool use_repeat_penalty = false;
 
   public:
@@ -349,6 +350,15 @@ class LLAMAContextEvalWorker : Napi::AsyncWorker, Napi::Promise::Deferred {
           }
 
           use_repeat_penalty = true;
+      }
+
+      if (options.Has("tokenMask")) {
+          Napi::Uint32Array js_token_mask = options.Get("tokenMask").As<Napi::Uint32Array>();
+
+          token_mask.reserve(js_token_mask.ElementLength());
+          for (size_t i = 0; i < js_token_mask.ElementLength(); i++) {
+            token_mask.push_back(static_cast<llama_token>(js_token_mask[i]));
+          }
       }
 
       if (options.Has("repeatPenaltyPresencePenalty")) {
@@ -418,6 +428,10 @@ class LLAMAContextEvalWorker : Napi::AsyncWorker, Napi::Promise::Deferred {
     candidates.reserve(n_vocab);
 
     for (llama_token token_id = 0; token_id < n_vocab; token_id++) {
+      size_t idx = token_id / 32;
+      if (idx < token_mask.size() && (token_mask[idx] & (1 << (token_id % 32))) == 0) {
+        continue;
+      }
       candidates.emplace_back(llama_token_data{ token_id, logits[token_id], 0.0f });
     }
 

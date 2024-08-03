@@ -130,7 +130,8 @@ export type LLAMAContext = {
         repeatPenaltyTokens?: Uint32Array,
         repeatPenaltyPresencePenalty?: number, // alpha_presence
         repeatPenaltyFrequencyPenalty?: number, // alpha_frequency
-        grammarEvaluationState?: LLAMAGrammarEvaluationState
+        grammarEvaluationState?: LLAMAGrammarEvaluationState,
+        tokenMask?: Uint32Array,
     }): Promise<number>,
     decode(tokens: Uint32Array): string,
     tokenBos(): number,

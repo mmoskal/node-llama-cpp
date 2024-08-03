@@ -2,7 +2,7 @@ import { LlamaModel, LlamaContext, LlamaChatSession } from "node-llama-cpp";
 
 
 
-function tt() {
+async function tt() {
 
     const model = new LlamaModel({
         modelPath: "test/.models/Phi-3.1-mini-4k-instruct-Q5_K_M.gguf"
@@ -31,7 +31,21 @@ function tt() {
 
     toks = context.encode(Uint8Array.from([128, 129]));
     console.log(toks)
+
+    const q1 = "Q: Hi there, how are you?\nA:";
+    toks = context.encode(q1);
+    const mask_size = (n_vocab + 31) >> 5;
+    for (let i = 0; i < 10; ++i) {
+        const tokenMask = new Uint32Array(mask_size);
+        tokenMask.fill(0xffffffff);
+        const skip = 306;
+        // tokenMask[skip >> 5] &= ~(1 << (skip & 31));
+        const r = await context._ctx.eval(toks, { tokenMask });
+        toks = Uint32Array.from([...toks, r]);
+        console.log({ tok: r, str: context._ctx.getTokenString(r) });
+    }
 }
+
 
 tt()
 
