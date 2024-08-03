@@ -135,7 +135,7 @@ class LLAMAContext : public Napi::ObjectWrap<LLAMAContext> {
     context_params.seed = -1;
     context_params.n_ctx = 4096;
     context_params.n_threads = 6;
-    context_params.n_threads_batch == -1 ? context_params.n_threads : context_params.n_threads_batch;
+    //context_params.n_threads_batch == -1 ? context_params.n_threads : context_params.n_threads_batch;
 
     if (info.Length() > 1 && info[1].IsObject()) {
       Napi::Object options = info[1].As<Napi::Object>();
@@ -162,7 +162,7 @@ class LLAMAContext : public Napi::ObjectWrap<LLAMAContext> {
 
       if (options.Has("threads")) {
         context_params.n_threads = options.Get("threads").As<Napi::Number>().Int32Value();
-        context_params.n_threads_batch == -1 ? context_params.n_threads : context_params.n_threads_batch;
+        //context_params.n_threads_batch == -1 ? context_params.n_threads : context_params.n_threads_batch;
       }
     }
 
@@ -175,7 +175,24 @@ class LLAMAContext : public Napi::ObjectWrap<LLAMAContext> {
     model->Unref();
   }
   Napi::Value Encode(const Napi::CallbackInfo& info) {
-    std::string text = info[0].As<Napi::String>().Utf8Value();
+    Napi::Env env = info.Env();
+
+    if (info.Length() < 1) {
+        Napi::TypeError::New(env, "Argument expected").ThrowAsJavaScriptException();
+        return env.Undefined();
+    }
+
+    std::string text;
+
+    if (info[0].IsString()) {
+        text = info[0].As<Napi::String>().Utf8Value();
+    } else if (info[0].IsTypedArray() && info[0].As<Napi::TypedArray>().TypedArrayType() == napi_uint8_array) {
+        Napi::Uint8Array uint8Array = info[0].As<Napi::Uint8Array>();
+        text = std::string(reinterpret_cast<char*>(uint8Array.Data()), uint8Array.ByteLength());
+    } else {
+        Napi::TypeError::New(env, "Expected a string or Uint8Array").ThrowAsJavaScriptException();
+        return env.Undefined();
+    }
 
     std::vector<llama_token> tokens = llama_tokenize(ctx, text, false);
 
@@ -215,6 +232,9 @@ class LLAMAContext : public Napi::ObjectWrap<LLAMAContext> {
   Napi::Value GetContextSize(const Napi::CallbackInfo& info) {
     return Napi::Number::From(info.Env(), llama_n_ctx(ctx));
   }
+  Napi::Value GetVocabSize(const Napi::CallbackInfo& info) {
+    return Napi::Number::From(info.Env(), llama_n_vocab(model->model));
+  }
 
   Napi::Value PrintTimings(const Napi::CallbackInfo& info) {
     llama_print_timings(ctx);
@@ -235,6 +255,26 @@ class LLAMAContext : public Napi::ObjectWrap<LLAMAContext> {
 
     return Napi::String::New(info.Env(), ss.str());
   }
+
+  Napi::Value GetTokenBytes(const Napi::CallbackInfo& info) {
+    int token = info[0].As<Napi::Number>().Int32Value();
+
+    bool special = false;
+    if (info.Length() > 1 && info[1].IsBoolean()) {
+        special = info[1].As<Napi::Boolean>().Value();
+    }
+
+    std::string str = llama_token_to_piece(ctx, token, special);
+
+    size_t length = str.size(); // Use size() to get the length of the std::string
+    Napi::Uint8Array uint8Array = Napi::Uint8Array::New(info.Env(), length);
+    for (size_t i = 0; i < length; ++i) {
+        uint8Array[i] = static_cast<uint8_t>(str[i]);
+    }
+
+    return uint8Array;
+  }
+
   Napi::Value Eval(const Napi::CallbackInfo& info);
   static void init(Napi::Object exports) {
     exports.Set("LLAMAContext",
@@ -247,7 +287,9 @@ class LLAMAContext : public Napi::ObjectWrap<LLAMAContext> {
                 InstanceMethod("tokenEos", &LLAMAContext::TokenEos),
                 InstanceMethod("tokenNl", &LLAMAContext::TokenNl),
                 InstanceMethod("getContextSize", &LLAMAContext::GetContextSize),
+                InstanceMethod("getVocabSize", &LLAMAContext::GetVocabSize),
                 InstanceMethod("getTokenString", &LLAMAContext::GetTokenString),
+                InstanceMethod("getTokenBytes", &LLAMAContext::GetTokenBytes),
                 InstanceMethod("eval", &LLAMAContext::Eval),
                 InstanceMethod("printTimings", &LLAMAContext::PrintTimings),
             }));
